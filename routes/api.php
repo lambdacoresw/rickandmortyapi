@@ -21,18 +21,18 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // characters routes
 Route::get('/characters', [RickAndMortyController::class,'getAllCharacters']);
-Route::get('/character/{character_id}', [RickAndMortyController::class,'getASingleCharacter']);
 Route::get('/character/{ids}', [RickAndMortyController::class, 'getMultipleCharacter']);
+Route::get('/character/{character_id}', [RickAndMortyController::class,'getASingleCharacter']);
 Route::get('/character/', [RickAndMortyController::class,'filterCharacters']);
 
 // location routes
-Route::get('/location', [RickAndMortyController::class,'getAllLocations']);
+Route::get('/locations', [RickAndMortyController::class,'getAllLocations']);
+Route::get('/location/{ids}', [RickAndMortyController::class, 'getMultipleLocations']);
 Route::get('/location/{location_id}', [RickAndMortyController::class,'getASingleLocation']);
-Route::get('/location/{location_id}', [RickAndMortyController::class, 'getMultipleLocations']);
 Route::get('/location/', [RickAndMortyController::class,'filterLocations']);
 
 // location episodes
-Route::get('/episode', [RickAndMortyController::class,'getAllEpisodes']);
+Route::get('/episodes', [RickAndMortyController::class,'getAllEpisodes']);
+Route::get('/episode/{ids}', [RickAndMortyController::class, 'getMultipleEpisodes']);
 Route::get('/episode/{episode_id}', [RickAndMortyController::class,'getASingleEpisode']);
-Route::get('/episode/{episode_id}', [RickAndMortyController::class, 'getMultipleEpisodes']);
 Route::get('/episode/', [RickAndMortyController::class,'filterEpisodes']);

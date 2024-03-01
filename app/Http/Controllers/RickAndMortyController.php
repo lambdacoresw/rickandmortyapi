@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use App\Models\Characters;
+use App\Models\Location;
+use App\Models\Episode;
 class RickAndMortyController extends Controller
 {
 
@@ -22,8 +24,27 @@ class RickAndMortyController extends Controller
         $response = $client->get($this->url . 'character', ['verify' => false]);
         $body = $response->getBody()->getContents();
         $characters = json_decode($body, true);
-        return response()->json($characters);
-    }
+
+        foreach($characters['results'] as $character) 
+        {            
+            Characters::create([
+                'name' => $character['name'],
+                'status' => $character['status'],
+                'species' => $character['species'],
+                'type' => $character['type'] ?? '',
+                'gender' => $character['gender'],
+                'origin_name' => $character['origin']['name'] ?? 'unknown',  
+                'origin_url' => $character['origin']['url'] ?? '',
+                'location_name' => $character['location']['name'] ??'',
+                'location_url' => $character['location']['url'] ?? '',
+                'image' => $character['image'],
+                'episodes' => json_encode($character['episode'])
+            ]);
+        }
+        return response()->json([
+            'message' => 'Characters Imported Successfully.'
+        ]);
+}
 
     /**
      * Belirli bir karakteri alır.
@@ -35,11 +56,15 @@ class RickAndMortyController extends Controller
      */
     public function getASingleCharacter($character_id)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'character/' . $character_id, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $characters = json_decode($body, true);
-        return response()->json($characters);
+        $character = Characters::find($character_id);
+        if(!$character)
+        {
+            return response()->json([
+                'message' => 'Karakter Bulunamadi !'
+            ]);
+        }
+
+        return response()->json($character);
     }
 
     /**
@@ -52,10 +77,15 @@ class RickAndMortyController extends Controller
      */
     public function getMultipleCharacter($ids)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'character/' . $ids, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $characters = json_decode($body, true);
+        $getIDs = explode(',', $ids);
+        $characters = Characters::findMany($getIDs);
+        if ($characters->isEmpty())
+        {
+            return response()->json([
+                'message' => 'Karakterler Bulunamadi !'
+            ], 404);
+        }
+
         return response()->json($characters);
     }
 
@@ -69,19 +99,24 @@ class RickAndMortyController extends Controller
      */
     public function filterCharacters(Request $request)
     {
-        $client = new \GuzzleHttp\Client();
-        $queryParameters = http_build_query([
-            'name' => $request->get('name', ''),
-            'status' => $request->get('status', ''),
-            'species' => $request->get('species', ''),
-            'type' => $request->get('type', ''),
-            'gender' => $request->get('gender', ''),
-        ]);
+        $query = Characters::query();
 
-        $url = $this->url . 'character/?' . $queryParameters;
-        $response = $client->request('GET', $url);
-        $body = $response->getBody()->getContents();
-        $characters = json_decode($body, true);
+        if ($request->has('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->has('species')) {
+            $query->where('species', $request->species);
+        }
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->has('gender')) {
+            $query->where('gender', $request->gender);
+        }
+        $characters = $query->get();
         return response()->json($characters);
     }
 
@@ -95,19 +130,30 @@ class RickAndMortyController extends Controller
     public function getAllLocations()
     {
         $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'location', ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $locations = json_decode($body, true);
-        return response()->json($locations);
+        $response = $client->request('GET', $this->url . 'location');
+        $data = json_decode($response->getBody()->getContents(), true);
+        foreach($data['results'] as $location)
+        {
+            Location::create([
+                'name' => $location['name'],
+                'type' => $location['type'],
+                'dimension' => $location['dimension'],
+            ]);
+        }
+        return response()->json([
+            'message' => 'Locations Imported Successfully'
+        ]);
     }
 
     public function getASingleLocation($location_id)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'location/' . $location_id, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $locations = json_decode($body, true);
-        return response()->json($locations);
+        $location = Location::find($location_id);
+        if(!$location)
+        {
+            return response()->json([
+                'message' => 'Lokasyon Bulunamadi !'
+            ]);
+        }
     }
 
     /**
@@ -120,10 +166,15 @@ class RickAndMortyController extends Controller
      */
     public function getMultipleLocations($ids)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'location/' . $ids, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $locations = json_decode($body, true);
+        $getIDs = explode(',', $ids);
+        $locations = Location::findMany($getIDs);
+        if ($locations->isEmpty())
+        {
+            return response()->json([
+                'message' => 'Lokasyon Bulunamadi !'
+            ], 404);
+        }
+
         return response()->json($locations);
     }
 
@@ -137,17 +188,19 @@ class RickAndMortyController extends Controller
      */
     public function filterLocations(Request $request)
     {
-        $client = new \GuzzleHttp\Client();
-        $queryParameters = http_build_query([
-            'name' => $request->get('name', ''),
-            'type' => $request->get('type', ''),
-            'dimension' => $request->get('dimension', ''),
-        ]);
+        $query = Location::query();
 
-        $url = $this->url . 'location/?' . $queryParameters;
-        $response = $client->request('GET', $url);
-        $body = $response->getBody()->getContents();
-        $locations = json_decode($body, true);
+        if ($request->has('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->has('dimension')) {
+            $query->where('dimension', $request->dimension);
+        }
+        
+        $locations = $query->get();
         return response()->json($locations);
     }
 
@@ -164,7 +217,18 @@ class RickAndMortyController extends Controller
         $response = $client->get($this->url . 'episode', ['verify' => false]);
         $body = $response->getBody()->getContents();
         $episodes = json_decode($body, true);
-        return response()->json($episodes);
+
+        foreach($episodes['results'] as $episode) 
+        {            
+            Episode::create([
+                'name' => $episode['name'],
+                'air_date' => $episode['air_date'] ?? '',
+                'episode' => $episode['episode'],
+            ]);
+        }
+        return response()->json([
+            'message' => 'Episodes Imported Successfully.'
+        ]);
     }
 
     /**
@@ -177,11 +241,13 @@ class RickAndMortyController extends Controller
      */
     public function getASingleEpisode($episode_id)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'episode/' . $episode_id, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $episodes = json_decode($body, true);
-        return response()->json($episodes);
+        $episode = Episode::find($episode_id);
+        if(!$episode)
+        {
+            return response()->json([
+                'message' => 'Bolum Bulunamadi !'
+            ]);
+        }
     }
 
     /**
@@ -194,10 +260,14 @@ class RickAndMortyController extends Controller
      */
     public function getMultipleEpisodes($ids)
     {
-        $client = new \GuzzleHttp\Client();
-        $response = $client->get($this->url . 'episode/' . $ids, ['verify' => false]);
-        $body = $response->getBody()->getContents();
-        $episodes = json_decode($body, true);
+        $getIDs = explode(',', $ids);
+        $episodes = Episode::findMany($getIDs);
+        if ($episodes->isEmpty())
+        {
+            return response()->json([
+                'message' => 'Bolumler Bulunamadi !'
+            ], 404);
+        }
         return response()->json($episodes);
     }
 
@@ -211,16 +281,16 @@ class RickAndMortyController extends Controller
      */
     public function filterEpisodes(Request $request)
     {
-        $client = new \GuzzleHttp\Client();
-        $queryParameters = http_build_query([
-            'name' => $request->get('name', ''),
-            'episode' => $request->get('episode', ''),
-        ]);
+        $query = Episode::query();
 
-        $url = $this->url . 'episode/?' . $queryParameters;
-        $response = $client->request('GET', $url);
-        $body = $response->getBody()->getContents();
-        $episodes = json_decode($body, true);
+        if ($request->has('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+        if ($request->has('episode')) {
+            $query->where('episode', $request->episode);
+        }
+        
+        $episodes = $query->get();
         return response()->json($episodes);
     }
 }
